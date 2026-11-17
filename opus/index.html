@@ -1484,7 +1484,7 @@ td.kg-cur.chg{color:var(--cyan);font-weight:600}
           <tbody><tr><td><strong>Watertight (closed manifold)</strong></td><td class="kg-st" data-sk="watertight">yes</td></tr><tr><td><strong>Open edges</strong></td><td class="kg-st" data-sk="openEdges">0</td></tr><tr><td><strong>Non-manifold edges</strong></td><td class="kg-st" data-sk="nonManifoldEdges">0</td></tr><tr><td><strong>Inconsistent windings</strong></td><td class="kg-st" data-sk="flippedEdges">0</td></tr><tr><td><strong>Genus (through-holes)</strong></td><td class="kg-st" data-sk="genus">2</td></tr><tr><td><strong>Vertices</strong></td><td class="kg-st" data-sk="verts">14,252</td></tr><tr><td><strong>Faces</strong></td><td class="kg-st" data-sk="faces">14,260</td></tr><tr><td><strong>Quads</strong></td><td class="kg-st" data-sk="quads">14,248</td></tr><tr><td><strong>Triangles</strong></td><td class="kg-st" data-sk="tris">12</td></tr><tr><td><strong>Volume (cm³)</strong></td><td class="kg-st" data-sk="volume">7.242</td></tr><tr><td><strong>Surface area (cm²)</strong></td><td class="kg-st" data-sk="area">35.35</td></tr><tr><td><strong>Bounding box (mm)</strong></td><td class="kg-st" data-sk="bbox">60.5 × 27.0 × 17.0 mm</td></tr><tr><td><strong>Build time (ms)</strong></td><td class="kg-st" data-sk="ms">332</td></tr></tbody>
         </table>
       </div>
-      <div class="callout"><span class="lbl">Exports</span>STL is binary, with each quad split on its shorter diagonal. The OBJ keeps the quads (14,248 of them at the defaults, plus 12 triangles where a wall steps), which is what a subdivision or CAD tool wants. The 3MF is the same closed mesh with every triangle tagged by part: core 3MF base colours (stem green, guard yellow, handle orange, grip &amp; lanyard pink) plus Bambu/Orca and PrusaSlicer paint data assigning filaments 1 to 4, so a multi-colour printer can print the colour coding (load four filaments, or set them all to one colour). All three are in millimetres with the part on Z = 0. The page's save dialog accepts zip files rather than .stl, .obj or .3mf, so each 3D export arrives inside a small .zip.</div>
+      <div class="callout"><span class="lbl">Exports</span>STL is binary, with each quad split on its shorter diagonal. The OBJ keeps the quads (14,248 of them at the defaults, plus 12 triangles where a wall steps), which is what a subdivision or CAD tool wants. The 3MF is the same closed mesh with every triangle tagged by part: core 3MF base colours (stem green, guard yellow, handle orange, grip &amp; lanyard pink) plus Bambu/Orca and PrusaSlicer paint data assigning filaments 1 to 4, so a multi-colour printer can print the colour coding (load four filaments, or set them all to one colour). All three are in millimetres with the part on Z = 0. Each one downloads as its own file. On claude.ai the save dialog accepts zip files rather than .stl, .obj or .3mf, so there each 3D export arrives inside a small .zip.</div>
     </div>
   </div>
 
@@ -3641,10 +3641,15 @@ window.KEY_PARAMS = [
   const status = el('div', 'kg-status'); gM.append(status);
   const gE = grp('Export', false);
   const exFmt = el('select'); exFmt.id = 'kgExFmt';
-  [['all', 'Everything: STL + OBJ + 3MF + parameters (.zip)'], ['3mf', '3MF, part colours kept (.zip)'], ['stl', 'STL, binary (.zip)'], ['obj', 'OBJ, quad mesh (.zip)'], ['csv', 'Parameter table (.csv)'], ['json', 'Settings (.json)']].forEach(([v, t]) => { const o = el('option', '', t); o.value = v; exFmt.append(o); });
+  const exZip = () => !!(window.claude && window.claude.use);  /* claude.ai save dialog only takes zip for 3D files; elsewhere they download as plain files */
+  const exLabels = () => { const z = exZip(); return [['all', 'Everything: STL + OBJ + 3MF + parameters (.zip)'], ['stl', 'STL, binary' + (z ? ' (.zip)' : ' (.stl)')], ['obj', 'OBJ, quad mesh' + (z ? ' (.zip)' : ' (.obj)')], ['3mf', '3MF, part colours kept' + (z ? ' (.zip)' : ' (.3mf)')], ['csv', 'Parameter table (.csv)'], ['json', 'Settings (.json)']]; };
+  const exNoteText = () => exZip() ? 'On claude.ai, STL, OBJ and 3MF arrive zipped because the save dialog only accepts a fixed list of file types. Unzip, then open the .stl or the coloured .3mf in your slicer.' : 'STL, OBJ and 3MF each download as their own file, ready for your slicer. Everything comes as one .zip.';
+  exLabels().forEach(([v, t]) => { const o = el('option', '', t); o.value = v; exFmt.append(o); });
+  const exRelabel = () => { const L = exLabels(); [...exFmt.options].forEach(o => { const m = L.find(l => l[0] === o.value); if (m) o.textContent = m[1]; }); };
+  exFmt.addEventListener('pointerdown', exRelabel); exFmt.addEventListener('focus', exRelabel);
   row(gE, 'format').append(exFmt);
   const exB = btn(row(gE), 'export file', '', () => exportFile(exFmt.value), 'Save the model with the current parameter values, sitting on the bed (Z = 0), in millimetres'); exB.classList.add('mv-primary');
-  const expNote = el('div', 'kg-note', 'STL, OBJ and 3MF are zipped because the save dialog only accepts a fixed list of file types. Unzip, then open the .stl or the coloured .3mf in your slicer.'); gE.append(expNote);
+  const expNote = el('div', 'kg-note', exNoteText()); gE.append(expNote);
 
   /* ---------- rebuild (debounced) ---------- */
   let rbT = 0;

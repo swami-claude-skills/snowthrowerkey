@@ -1339,7 +1339,7 @@
         <li><span class="tid">One piece</span>A single part printed flat, as the spec says.</li>
         <li><span class="tid">Thingiverse</span>A two-piece model of this key exists on Thingiverse <span class="cite" data-ref="1">[1]</span>. It is listed for documentation only and was not used for this geometry; see Thingiverse Model.</li>
       </ul>
-      <div class="callout"><span class="lbl">Where to start</span>Open Key Generator, change any value in the side panel, and watch the key rebuild. Export gives a zip with the STL, the quad OBJ and the parameter table.</div>
+      <div class="callout"><span class="lbl">Where to start</span>Open Key Generator, change any value in the side panel, and watch the key rebuild. Export saves the STL, the quad OBJ or the coloured 3MF on its own, or everything with the parameter table in one zip.</div>
     </div>
   </div>
 
@@ -4636,12 +4636,17 @@ document.getElementById('mailLink').addEventListener('click', ()=>{
   const statBox = el('div', 'mv-stats'); gM.append(statBox);
   const gE = grp('Export');
   const exFmt = el('select'); exFmt.id = 'kgExFmt';
-  [['all', 'Everything: STL + OBJ + 3MF + parameters (.zip)'], ['3mf', '3MF, part colours kept (.zip)'], ['stl', 'STL, binary (.zip)'], ['obj', 'OBJ, quad mesh (.zip)'], ['csv', 'Parameter table (.csv)'], ['json', 'Settings (.json)']].forEach(([v, t]) => { const o = el('option', '', t); o.value = v; exFmt.append(o); });
+  const exZip = () => !!(window.claude && window.claude.use);  /* claude.ai save dialog only takes zip for 3D files; elsewhere they download as plain files */
+  const exLabels = () => { const z = exZip(); return [['all', 'Everything: STL + OBJ + 3MF + parameters (.zip)'], ['stl', 'STL, binary' + (z ? ' (.zip)' : ' (.stl)')], ['obj', 'OBJ, quad mesh' + (z ? ' (.zip)' : ' (.obj)')], ['3mf', '3MF, part colours kept' + (z ? ' (.zip)' : ' (.3mf)')], ['csv', 'Parameter table (.csv)'], ['json', 'Settings (.json)']]; };
+  const exNoteText = () => exZip() ? 'On claude.ai, STL, OBJ and 3MF arrive zipped because the save dialog only accepts a fixed list of file types. Unzip, then open the .stl or the coloured .3mf in your slicer.' : 'STL, OBJ and 3MF each download as their own file, ready for your slicer. Everything comes as one .zip.';
+  exLabels().forEach(([v, t]) => { const o = el('option', '', t); o.value = v; exFmt.append(o); });
+  const exRelabel = () => { const L = exLabels(); [...exFmt.options].forEach(o => { const m = L.find(l => l[0] === o.value); if (m) o.textContent = m[1]; }); };
+  exFmt.addEventListener('pointerdown', exRelabel); exFmt.addEventListener('focus', exRelabel);
   { const r = row(gE, 'format'); r.append(exFmt); }
   const exBed = el('input'); exBed.type = 'checkbox'; exBed.id = 'kgExBed'; exBed.checked = true;
   { const r = row(gE); const l = el('label', 'mv-chk', 'sit on the bed (lowest point at Z = 0)'); l.htmlFor = 'kgExBed'; l.style.minWidth = '0'; r.append(exBed, l); }
   const exB = btn(row(gE), 'export file', '', () => doExport(), 'Save the model with the current parameter values'); exB.classList.add('mv-primary');
-  const exStat = el('div', 'mv-note', 'STL, OBJ and 3MF are zipped because the save dialog only accepts a fixed list of file types. Unzip, then open the .stl or the coloured .3mf in your slicer.'); gE.append(exStat);
+  const exStat = el('div', 'mv-note', exNoteText()); gE.append(exStat);
 
   /* ---------- live readouts (panel, HUD and the Master Parameter Table) ---------- */
   function readouts() {
@@ -4889,7 +4894,8 @@ document.getElementById('mailLink').addEventListener('click', ()=>{
         if (f === 'all' || f === 'obj') files.push({ name: stem + '.obj', data: enc(K.toOBJ(M, dz, hdr)) });
         if (f === 'all' || f === '3mf') files.push({ name: stem + '.3mf', data: K.to3MF(M, dz) });
         if (f === 'all') files.push({ name: stem + '-parameters.csv', data: enc(paramCSV()) }, { name: stem + '-settings.json', data: enc(settingsJSON()) });
-        filename = stem + (f === 'all' ? '' : '-' + f) + '.zip'; data = new Blob([K.zipStore(files)], { type: 'application/zip' }); }
+        if (f !== 'all' && !dl) { filename = files[0].name; data = new Blob([files[0].data], { type: 'application/octet-stream' }); }
+        else { filename = stem + (f === 'all' ? '' : '-' + f) + '.zip'; data = new Blob([K.zipStore(files)], { type: 'application/zip' }); } }
       if (dl) { try { await dl.save({ filename, data }); exStat.innerHTML = 'Saved <b>' + filename + '</b> (' + fmt(data.size / 1024, 0) + ' KB).'; }
         catch (e) { exStat.innerHTML = e && e.code === 'declined' ? 'Save cancelled.' : '<span class="mv-warn">The file could not be saved here' + (e && e.code ? ' (' + e.code + ')' : '') + '.</span> Open the page in claude.ai while signed in and try again.'; } }
       else { try { const u = URL.createObjectURL(data), a = document.createElement('a'); a.href = u; a.download = filename; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000);
